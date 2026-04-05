@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSONP Debug</title>
+<style>
+  body { background:#1C1A19; color:#EDE5D8; font-family:monospace; padding:20px; font-size:13px; }
+  .step { padding:10px; margin:6px 0; border-radius:6px; background:#252220; border:1px solid #3D3632; word-break:break-all; }
+  .ok  { border-color:#8FAF6B; color:#8FAF6B; }
+  .err { border-color:#ff6b6b; color:#ff6b6b; }
+  .warn { border-color:#D4622A; color:#D4622A; }
+  button { background:#D4622A; color:#fff; border:none; padding:12px 20px; border-radius:8px; font-size:14px; cursor:pointer; margin:6px 4px; }
+</style>
+</head>
+<body>
+<h2 style="color:#D4622A">JSONP Debug</h2>
+<button onclick="testFetch()">Test fetch()</button>
+<button onclick="testJSONP()">Test JSONP</button>
+<button onclick="testJSONPCallback()">Test JSONP w/ callback param</button>
+<div id="log"></div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbxBfIiT2DxxZL9fQnNYwOqE-ANHKkv7YbdVh9B1euhimUBsS4j4BtpdSTv3CG_Quv7Ktg/exec';
+const TOKEN = 'workouttrackers_apr_2026';
+
+function log(msg, type='warn') {
+  const d = document.getElementById('log');
+  const div = document.createElement('div');
+  div.className = 'step ' + type;
+  div.textContent = new Date().toLocaleTimeString() + ' — ' + msg;
+  d.appendChild(div);
+}
+
+// Test 1: plain fetch
+async function testFetch() {
+  log('Testing fetch()...');
+  try {
+    const url = API_URL + '?token=' + TOKEN + '&action=getWorkoutPlans';
+    const res = await fetch(url, { mode: 'cors' });
+    const text = await res.text();
+    log('fetch() OK: ' + text.slice(0, 80), 'ok');
+  } catch(e) {
+    log('fetch() FAILED: ' + e.message, 'err');
+  }
+}
+
+// Test 2: JSONP without callback (does it return JSON?)
+function testJSONP() {
+  log('Testing JSONP script tag (no callback)...');
+  const script = document.createElement('script');
+  const url = API_URL + '?token=' + TOKEN + '&action=getWorkoutPlans';
+  script.src = url;
+  script.onload = () => log('Script loaded (no callback) — no error', 'ok');
+  script.onerror = (e) => log('Script onerror fired', 'err');
+  document.head.appendChild(script);
+  setTimeout(() => log('5s passed — still waiting', 'warn'), 5000);
+}
+
+// Test 3: JSONP with callback
+function testJSONPCallback() {
+  log('Testing JSONP with callback param...');
+  window.myTestCallback = function(data) {
+    log('Callback fired! Data: ' + JSON.stringify(data).slice(0, 100), 'ok');
+  };
+  const script = document.createElement('script');
+  const url = API_URL + '?token=' + TOKEN + '&action=getWorkoutPlans&callback=myTestCallback';
+  script.src = url;
+  script.onload = () => log('Script tag loaded OK', 'ok');
+  script.onerror = () => log('Script onerror — URL blocked or script error', 'err');
+  document.head.appendChild(script);
+  setTimeout(() => {
+    if (window.myTestCallback) log('Callback never fired after 8s', 'err');
+  }, 8000);
+}
+</script>
+</body>
+</html>
